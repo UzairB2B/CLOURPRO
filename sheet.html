@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cloud Sheet Pro — Advanced Spreadsheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* BASE STYLES */
+        .cell {
+            min-width: 80px;
+            min-height: 34px; 
+            padding: 4px 8px;
+            outline: none;
+            cursor: text;
+            /* Default styles for all cells */
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            color: #333;
+            text-align: left;
+            display: flex;
+            align-items: center; 
+        }
+        .col-header, .row-header {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+        }
+        .sheet-area {
+            overflow: auto;
+            max-height: 70vh; 
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        /* Selection */
+        .selected {
+            box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.6); 
+            z-index: 10;
+        }
+        /* Merge */
+        .merged {
+            background: #e0f2f1; 
+        }
+        table.sheet {
+            border-collapse: collapse;
+        }
+        table.sheet td, table.sheet th {
+            border: 1px solid #e6edf3;
+            overflow: hidden;
+        }
+        
+        /* Custom Tool Group Styling */
+        .tool-group {
+            border-right: 1px solid #eee;
+            padding-right: 12px;
+            margin-right: 12px;
+        }
+        .tool-group:last-child {
+            border-right: none;
+            padding-right: 0;
+            margin-right: 0;
+        }
+        /* Style for the reference box */
+        #cellReference {
+            width: 70px; /* Standard width for A1, B20, etc. */
+            background: #f1f5f9;
+            border-radius: 0.375rem 0 0 0.375rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        #formulaBar {
+            border-radius: 0 0.375rem 0.375rem 0 !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-inter">
+
+<header class="bg-white shadow-md p-3 mb-4 sticky top-0 z-20 border-b border-gray-200">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex items-center justify-between mb-3">
+            <h1 class="text-xl font-extrabold text-indigo-700">Cloud Sheet Pro</h1>
+            <div class="flex gap-2">
+                <a href="index.html" id="homeBtn" class="px-3 py-2 bg-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-300 transition duration-150" title="Go to Home">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <input id="fileInput" type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="hidden">
+                <button id="importBtn" class="px-3 py-2 bg-white text-indigo-600 border border-indigo-300 rounded-md text-sm font-medium hover:bg-indigo-50 transition duration-150">
+                    <i class="fas fa-upload mr-1"></i> Import
+                </button>
+                <button id="exportCSV" class="px-3 py-2 bg-amber-500 text-white rounded-md text-sm font-medium hover:bg-amber-600 transition duration-150">
+                    <i class="fas fa-file-csv mr-1"></i> Export CSV
+                </button>
+                <button id="exportPDF" class="px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition duration-150">
+                    <i class="fas fa-file-pdf mr-1"></i> Export PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gray-100 p-2 rounded-lg flex flex-wrap items-center gap-3">
+            
+            <div class="tool-group flex items-center gap-2">
+                <select id="fontFamily" class="h-8 border border-gray-300 rounded-md text-sm px-2 py-0 focus:ring-indigo-500 focus:border-indigo-500" style="width:120px;">
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Verdana">Verdana</option>
+                </select>
+                <select id="fontSize" class="h-8 border border-gray-300 rounded-md text-sm px-2 py-0 focus:ring-indigo-500 focus:border-indigo-500" style="width:80px;">
+                    <option value="10pt">10pt</option>
+                    <option value="12pt" selected>12pt</option>
+                    <option value="14pt">14pt</option>
+                    <option value="16pt">16pt</option>
+                    <option value="18pt">18pt</option>
+                </select>
+            </div>
+            
+            <div class="tool-group flex gap-1">
+                <button id="boldBtn" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white font-bold" title="Bold"><i class="fas fa-bold"></i></button>
+                <button id="italicBtn" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white italic" title="Italic"><i class="fas fa-italic"></i></button>
+                <label for="textColor" class="w-8 h-8 flex items-center justify-center rounded hover:bg-white cursor-pointer" title="Text Color">
+                    <i class="fas fa-tint text-gray-600"></i>
+                    <input type="color" id="textColor" class="opacity-0 w-0 h-0 p-0 absolute" value="#333333">
+                </label>
+                <label for="cellColor" class="w-8 h-8 flex items-center justify-center rounded hover:bg-white cursor-pointer" title="Cell Background Color">
+                    <i class="fas fa-fill-drip text-gray-600"></i>
+                    <input type="color" id="cellColor" class="opacity-0 w-0 h-0 p-0 absolute" value="#ffffff">
+                </label>
+            </div>
+            
+            <div class="tool-group flex gap-1">
+                <button id="alignLeftBtn" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white" data-align="left" title="Align Left"><i class="fas fa-align-left"></i></button>
+                <button id="alignCenterBtn" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white" data-align="center" title="Align Center"><i class="fas fa-align-center"></i></button>
+                <button id="alignRightBtn" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white" data-align="right" title="Align Right"><i class="fas fa-align-right"></i></button>
+            </div>
+
+            <div class="tool-group flex gap-2">
+                <button id="mergeBtn" class="h-8 px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300" title="Merge Cells"><i class="fas fa-compress-alt mr-1"></i> Merge</button>
+                <button id="unmergeBtn" class="h-8 px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300" title="Unmerge Cells"><i class="fas fa-expand-alt mr-1"></i> Unmerge</button>
+            </div>
+
+            <div class="flex items-center gap-0 flex-grow border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition duration-150">
+                <div id="cellReference" class="h-8 flex items-center justify-center text-sm px-2 py-1 text-slate-700 border-r border-gray-300">A1</div>
+                <input id="formulaBar" class="h-8 px-2 py-1 w-full text-sm focus:outline-none" placeholder="Enter formula or value here..." />
+            </div>
+
+            <button id="chartModalBtn" class="h-8 px-4 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition duration-150">
+                <i class="fas fa-chart-bar mr-1"></i> Create Chart
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4">
+    <div class="sheet-area bg-white shadow-lg">
+        <table id="sheetTable" class="w-full sheet">
+            </table>
+    </div>
+
+    <div class="mt-6 grid md:grid-cols-2 gap-4">
+        <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <h3 class="font-semibold mb-2 text-lg text-slate-700"><i class="fas fa-table mr-2"></i> Selected Range Data</h3>
+            <pre id="rangeData" class="text-xs text-slate-700 bg-gray-50 p-3 rounded overflow-auto h-48"></pre>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <h3 class="font-semibold mb-2 text-lg text-slate-700"><i class="fas fa-chart-line mr-2"></i> Chart Preview</h3>
+            <div class="p-3 border rounded border-gray-200 bg-white">
+                <canvas id="chartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="bg-gray-800 text-white p-4 mt-8">
+    <div class="max-w-7xl mx-auto text-center text-sm">
+        &copy; 2024 Cloud PPT Pro. Developed by Uzair B2B Services.
+    </div>
+</footer>
+
+<div id="chartModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 hidden flex items-center justify-center transition-opacity duration-300">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 transform transition-all">
+        <h3 class="text-xl font-bold mb-4 text-indigo-600">Chart Settings</h3>
+        <p class="text-sm text-gray-600 mb-4">Selected Range: <span id="selectedRangeDisplay" class="font-mono bg-yellow-100 px-1 rounded">A1:A1</span></p>
+        
+        <div class="mb-4">
+            <label for="chartType" class="block text-sm font-medium text-gray-700 mb-1">Select Chart Type</label>
+            <select id="chartType" class="w-full border-gray-300 rounded-md shadow-sm p-2 text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+                <option value="pie">Pie Chart</option>
+            </select>
+        </div>
+
+        <div class="flex justify-between items-center pt-4 border-t">
+            <button id="exportChartBtn" class="px-4 py-2 bg-green-500 text-white rounded-md text-sm font-medium hover:bg-green-600 transition duration-150">
+                <i class="fas fa-download mr-1"></i> Export Chart (PNG)
+            </button>
+            <button id="closeChartModal" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition duration-150">
+                Apply & Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Utility functions ---
+function colLabel(n){ let s=''; n++; while(n>0){ let m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26);} return s; }
+function parseA1(ref){ const m = ref.toUpperCase().match(/^([A-Z]+)(\d+)$/); if(!m) return null; return {col:m[1], row:parseInt(m[2],10)}; }
+function colToNum(s){ let n=0; for(let ch of s){ n = n*26 + (ch.charCodeAt(0)-64);} return n; }
+function rangeToCells(r){ if(!r.includes(':')) return [r]; const [a,b]=r.split(':'); const A=parseA1(a), B=parseA1(b); if(!A||!B) return []; const ca=colToNum(A.col), cb=colToNum(B.col); const cells=[]; for(let c=Math.min(ca,cb); c<=Math.max(ca,cb); c++){ let col=''; let n=c; while(n>0){ let m=(n-1)%26; col=String.fromCharCode(65+m)+col; n=Math.floor((n-1)/26);} for(let r2=Math.min(A.row,B.row); r2<=Math.max(A.row,B.row); r2++){ cells.push(col+''+r2); }} return cells; }
+
+// --- Sheet model ---
+const COLS = 20; const ROWS = 40; 
+let cellMap = {}; 
+let merges = []; 
+let selection = {start:null, end:null};
+let chart = null;
+let activeCellRef = null; 
+
+// --- DOM elements ---
+const table = document.getElementById('sheetTable');
+const formulaBar = document.getElementById('formulaBar');
+const cellReference = document.getElementById('cellReference'); // NEW
+const chartCanvas = document.getElementById('chartCanvas');
+const chartModal = document.getElementById('chartModal');
+const chartTypeSelect = document.getElementById('chartType');
+const selectedRangeDisplay = document.getElementById('selectedRangeDisplay');
+
+// Build table
+function buildTable(){ 
+    table.innerHTML='';
+    const thead = document.createElement('thead'); 
+    const htr = document.createElement('tr'); 
+    htr.appendChild(document.createElement('th')); 
+    for(let c=0;c<COLS;c++){ 
+        const th=document.createElement('th'); 
+        th.className='col-header p-2 text-xs w-20 sticky top-0'; 
+        th.innerText = colLabel(c); 
+        htr.appendChild(th);
+    } 
+    thead.appendChild(htr); 
+    table.appendChild(thead);
+    
+    const tbody = document.createElement('tbody');
+    for(let r=1;r<=ROWS;r++){ 
+        const tr=document.createElement('tr'); 
+        const rowth=document.createElement('th'); 
+        rowth.className='row-header p-2 text-xs sticky left-0'; 
+        rowth.innerText = r; 
+        tr.appendChild(rowth);
+        
+        for(let c=0;c<COLS;c++){ 
+            const td=document.createElement('td'); 
+            td.className='p-0'; 
+            const div=document.createElement('div'); 
+            div.contentEditable=true; 
+            div.className='cell'; 
+            const ref = colLabel(c)+''+r; 
+            div.dataset.cell = ref; 
+            div.addEventListener('focus', ()=> onCellFocus(div)); 
+            div.addEventListener('input', ()=> onCellInput(div)); 
+            div.addEventListener('blur', ()=> onCellBlur(div)); 
+            div.addEventListener('keydown', (e) => onCellKeyDown(e, div)); // NEW: Handle Enter in cell
+            div.addEventListener('mousedown', (e) => handleSelectionStart(e, ref));
+            div.addEventListener('mousemove', (e) => handleSelectionDrag(e, ref));
+            td.appendChild(div); 
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    renderAll();
+}
+
+let isDragging = false; 
+
+function handleSelectionStart(e, ref) {
+    if (e.shiftKey) return; 
+    isDragging = true;
+    selection.start = ref;
+    selection.end = ref;
+    lastClicked = ref;
+    updateFormulaBar(); 
+    renderSelection();
+}
+
+function handleSelectionDrag(e, ref) {
+    if (isDragging && e.buttons === 1) { 
+        selection.end = ref;
+        renderSelection();
+    }
+}
+
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+});
+
+// Set activeCellRef on focus and show raw content/formula
+function onCellFocus(div){ 
+    const ref = div.dataset.cell; 
+    activeCellRef = ref; 
+    
+    const cellData = cellMap[ref];
+    // Show the raw formula or value when focused
+    if (cellData) {
+        div.innerText = cellData.f || cellData.v || '';
+    }
+    
+    if (!isDragging) {
+        selection.start = ref; 
+        selection.end = ref; 
+        lastClicked = ref;
+    }
+    updateFormulaBar(); 
+    renderSelection(); 
+}
+
+// Store input (value and formula if it starts with '=')
+function onCellInput(div){ 
+    const ref = div.dataset.cell; 
+    cellMap[ref] = cellMap[ref]||{}; 
+    const text = div.innerText;
+    cellMap[ref].v = text; 
+    cellMap[ref].f = text.startsWith('=') ? text : undefined; 
+    updateFormulaBar();
+}
+
+// NEW: Handle Enter key press inside the cell
+function onCellKeyDown(e, div) {
+    if (e.key === 'Enter') {
+        e.preventDefault(); 
+        div.blur(); // Trigger onCellBlur to finalize and recalculate
+    }
+}
+
+// FIX: Recalculate and render after typing is complete (on blur)
+function onCellBlur(div) {
+    activeCellRef = null; 
+    const ref = div.dataset.cell;
+
+    // Reparse the content from the cell's innerText
+    const text = div.innerText;
+    cellMap[ref] = cellMap[ref]||{}; 
+    cellMap[ref].v = text;
+    cellMap[ref].f = text.startsWith('=') ? text : undefined;
+
+    renderAll();
+}
+
+// renderAll (Handles calculations and skips updating the active cell)
+function renderAll(){ 
+    // 1. Create value map from stored content (v) or formula (f)
+    const valueMap = {}; 
+    document.querySelectorAll('[data-cell]').forEach(el => {
+        const ref = el.dataset.cell;
+        const c = cellMap[ref];
+        if (c && c.v !== undefined) {
+             // For calculation purposes, use stored value
+             valueMap[ref] = c.v;
+        } else {
+             valueMap[ref] = '';
+        }
+    });
+
+    // 2. Evaluate all formulas and update cell display
+    document.querySelectorAll('[data-cell]').forEach(el=>{
+        const ref = el.dataset.cell; 
+        const c = cellMap[ref]; 
+        
+        // Skip updating the innerText of the currently active cell
+        if (ref === activeCellRef) {
+            if (c && c.f && c.f.startsWith('=')) {
+                valueMap[ref] = evalFormula(c.f.slice(1), valueMap);
+            }
+            return; 
+        }
+
+        if(c && c.f && c.f.startsWith('=')){ 
+            const val = evalFormula(c.f.slice(1), valueMap);
+            el.innerText = val; 
+            valueMap[ref] = val; // Store calculated value back into map for other calculations
+        } else if(c && c.v !== undefined){ 
+            // Only update display if the raw value exists and it's not a formula
+            el.innerText = c.v;
+            valueMap[ref] = c.v;
+        } else {
+            el.innerText = '';
+        }
+        
+        applyStylesToElement(ref, el);
+    });
+    
+    // 3. Render Merges
+    renderMerges();
+}
+
+// applyStylesToElement (UNTOUCHED)
+function applyStylesToElement(ref, el){ 
+    const c = cellMap[ref]; 
+    const styles = c && c.styles ? c.styles : {}; 
+    
+    el.style.fontWeight = styles.bold ? '700' : '400';
+    el.style.fontStyle = styles.italic ? 'italic' : 'normal'; 
+    el.style.fontFamily = styles.fontFamily || 'Arial';
+    el.style.fontSize = styles.fontSize || '12pt';
+    el.style.color = styles.color || '#333';
+    el.style.textAlign = styles.textAlign || 'left';
+    el.style.backgroundColor = styles.bgColor || '#ffffff';
+}
+
+// Selection rendering (UNTOUCHED)
+function renderSelection(){ 
+    document.querySelectorAll('.cell').forEach(el=> el.classList.remove('selected'));
+    if(!selection.start) {
+        cellReference.innerText = ''; // Clear reference when no selection
+        return;
+    } 
+    const start = selection.start; 
+    const end = selection.end || start; 
+    const sA=parseA1(start); 
+    const sB=parseA1(end); 
+    if (!sA || !sB) return;
+
+    // NEW: Update Cell Reference display
+    cellReference.innerText = start; 
+
+    const ca=colToNum(sA.col), cb=colToNum(sB.col); 
+    const ra=sA.row, rb=sB.row; 
+    
+    for(let c=Math.min(ca,cb); c<=Math.max(ca,cb); c++){ 
+        let col=''; let n=c; 
+        while(n>0){ 
+            let m=(n-1)%26; 
+            col=String.fromCharCode(65+m)+col; 
+            n=Math.floor((n-1)/26);
+        } 
+        for(let r=Math.min(ra,rb); r<=Math.max(ra,rb); r++){ 
+            const cell = document.querySelector('[data-cell="'+col+''+r+'"]'); 
+            if(cell) cell.classList.add('selected'); 
+        }
+    } 
+    updateRangeData(); 
+    updateToolbarState();
+}
+
+// Update Toolbar (UNTOUCHED)
+function updateToolbarState() {
+    if (!selection.start) return;
+    const ref = selection.start;
+    const c = cellMap[ref];
+    const styles = c && c.styles ? c.styles : {};
+    
+    document.getElementById('fontFamily').value = styles.fontFamily || 'Arial';
+    document.getElementById('fontSize').value = styles.fontSize || '12pt';
+    document.getElementById('textColor').value = styles.color || '#333333';
+    document.getElementById('cellColor').value = styles.bgColor || '#ffffff';
+
+    document.getElementById('boldBtn').classList.toggle('bg-indigo-200', !!styles.bold);
+    document.getElementById('italicBtn').classList.toggle('bg-indigo-200', !!styles.italic);
+    
+    document.querySelectorAll('[data-align]').forEach(btn => {
+        const align = btn.getAttribute('data-align');
+        btn.classList.toggle('bg-indigo-200', styles.textAlign === align);
+    });
+}
+
+// Formula evaluation (UNTOUCHED)
+function evalFormula(expr, map){ try{ expr = expr.replace(/\s+/g,''); 
+    expr = expr.replace(/SUM\(([^)]+)\)/ig, (m,p)=>{ const cells = p.includes(':') ? rangeToCells(p) : p.split(','); const vals = cells.flatMap(c=> Array.isArray(c)?c:c).map(ref=> parseFloat(map[ref])||0); return vals.reduce((a,b)=>a+b,0); });
+    expr = expr.replace(/AVERAGE\(([^)]+)\)/ig, (m,p)=>{ const cells = p.includes(':') ? rangeToCells(p) : p.split(','); const vals = cells.flatMap(c=> Array.isArray(c)?c:c).map(ref=> parseFloat(map[ref])||0); return (vals.reduce((a,b)=>a+b,0) / Math.max(vals.length,1)); });
+    expr = expr.replace(/([A-Za-z]+\d+)/g, (m)=>{ return parseFloat(map[m])||0; });
+    if(!/^[0-9+\-*/().]+$/.test(expr)) return '#ERR';
+    // Use toFixed(2) for common financial/decimal presentation if it's a number
+    let result = Function('return '+expr)();
+    if (typeof result === 'number' && !Number.isInteger(result)) {
+        return result.toFixed(2); 
+    }
+    return result;
+    }catch(e){ return '#ERR'; }
+}
+
+// Merge / Unmerge (UNTOUCHED)
+function renderMerges(){ 
+    document.querySelectorAll('td').forEach(td=> { td.style.display=''; td.removeAttribute('rowSpan'); td.removeAttribute('colSpan'); td.classList.remove('merged'); });
+    merges.forEach(m=>{
+        const start = m.start; 
+        const end=m.end; 
+        const A=parseA1(start); 
+        const B=parseA1(end); 
+        if (!A || !B) return;
+        const ca=colToNum(A.col), cb=colToNum(B.col); 
+        const ra=A.row, rb=B.row; 
+        const rows = Math.abs(rb-ra)+1; 
+        const cols = Math.abs(cb-ca)+1;
+        
+        const startCell = document.querySelector('[data-cell="'+start+'"]').parentElement; 
+        startCell.rowSpan = rows; 
+        startCell.colSpan = cols; 
+        startCell.classList.add('merged');
+        
+        for(let c=Math.min(ca,cb); c<=Math.max(ca,cb); c++){ 
+            let col=''; let n=c; 
+            while(n>0){ let m=(n-1)%26; col=String.fromCharCode(65+m)+col; n=Math.floor((n-1)/26);} 
+            for(let r=Math.min(ra,rb); r<=Math.max(ra,rb); r++){ 
+                const ref = col+''+r; 
+                if(ref===start) continue; 
+                const cell = document.querySelector('[data-cell="'+ref+'"]').parentElement; 
+                if(cell) cell.style.display = 'none'; 
+            }
+        }
+    });
+}
+
+function mergeSelection(){ 
+    if(!selection.start || !selection.end || selection.start === selection.end) return alert('Please select a range of cells to merge.'); 
+    const start = selection.start; 
+    const end = selection.end; 
+    
+    const cellsToMerge = rangeToCells(start + ':' + end);
+    const hasExistingMerge = merges.some(m => cellsToMerge.includes(m.start));
+    
+    if (hasExistingMerge) {
+        alert("Cannot merge: the selected range includes a cell that is already the start of another merged region.");
+        return;
+    }
+    
+    merges = merges.filter(m => !rangeToCells(m.start + ':' + m.end).some(ref => cellsToMerge.includes(ref)));
+
+    merges.push({start, end}); 
+    renderMerges(); 
+}
+function unmergeSelection(){ 
+    if(!selection.start) return; 
+    const start = selection.start; 
+    merges = merges.filter(m=> !(m.start===start) ); 
+    renderMerges(); 
+}
+
+// --- Style application logic (UNTOUCHED) ---
+function applyStyleToSelection(styleKey, styleValue = null){ 
+    if(!selection.start) return; 
+    
+    const A=parseA1(selection.start), B=parseA1(selection.end||selection.start); 
+    if (!A || !B) return;
+    const ca=colToNum(A.col), cb=colToNum(B.col); 
+    
+    for(let c=Math.min(ca,cb); c<=Math.max(ca,cb); c++){ 
+        let col=''; let n=c; 
+        while(n>0){ let m=(n-1)%26; col=String.fromCharCode(65+m)+col; n=Math.floor((n-1)/26);} 
+        
+        for(let r=Math.min(A.row,B.row); r<=Math.max(A.row,B.row); r++){ 
+            const ref = col+''+r; 
+            cellMap[ref] = cellMap[ref]||{}; 
+            cellMap[ref].styles = cellMap[ref].styles || {}; 
+            
+            if (styleValue === null) {
+                cellMap[ref].styles[styleKey] = !cellMap[ref].styles[styleKey];
+            } else {
+                cellMap[ref].styles[styleKey] = styleValue;
+            }
+
+            const el = document.querySelector('[data-cell="'+ref+'"]'); 
+            applyStylesToElement(ref, el); 
+        } 
+    } 
+    updateToolbarState(); 
+}
+
+// --- Chart Modal Logic (UNTOUCHED) ---
+function openChartModal(){
+    if(!selection.start || !selection.end || selection.start === selection.end) {
+        alert('Please select a range of at least 2 cells to create a chart.');
+        return;
+    }
+    const range = selection.start + ':' + (selection.end || selection.start);
+    selectedRangeDisplay.textContent = range;
+    chartModal.classList.remove('hidden');
+}
+
+function closeChartModal(){
+    chartModal.classList.add('hidden');
+    createChartFromSelection(chartTypeSelect.value);
+}
+
+function createChartFromSelection(type = 'bar'){ 
+    if(!selection.start || !selection.end) return; 
+    const range = selection.start + ':' + (selection.end || selection.start);
+    const cells = rangeToCells(range); 
+    
+    // Get values from the rendered cells (which hold calculated results)
+    const rawData = cells.map(ref=> parseFloat(document.querySelector('[data-cell="'+ref+'"]').innerText)||0);
+    const labels = cells.map(c=>c);
+    
+    const chartData = rawData.map(v => Math.max(0, v));
+
+    const ctx = chartCanvas.getContext('2d'); 
+    if(chart) chart.destroy(); 
+    
+    const backgroundColors = labels.map((_, i) => `hsl(${i * 30 % 360}, 70%, 50%)`);
+
+    chart = new Chart(ctx, { 
+        type: type, 
+        data:{ 
+            labels: labels, 
+            datasets:[{ 
+                label:'Selected Data', 
+                data: chartData, 
+                backgroundColor: (type === 'pie' || type === 'bar') ? backgroundColors : 'rgba(75, 192, 192, 0.5)',
+                borderColor: type === 'line' ? 'rgb(75, 192, 192)' : 'white',
+                borderWidth: 1,
+                fill: type === 'line' ? false : true
+            }] 
+        }, 
+        options:{ 
+            responsive:true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: type !== 'pie'
+                }
+            }
+        } 
+    }); 
+}
+
+function exportChartAsPNG(){
+    if (!chart) return alert('No chart visible to export.');
+    const url = chart.toBase64Image();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'chart_export.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+// --- Range data preview (UNTOUCHED) ---
+function updateRangeData(){ 
+    if(!selection.start) return; 
+    const s = selection.start; 
+    const e = selection.end||selection.start; 
+    const cells = [];
+    
+    const A=parseA1(s), B=parseA1(e); 
+    if (!A || !B) return;
+
+    const ca=colToNum(A.col), cb=colToNum(B.col); 
+    
+    for(let c=Math.min(ca,cb); c<=Math.max(ca,cb); c++){ 
+        let col=''; let n=c; while(n>0){ let m=(n-1)%26; col=String.fromCharCode(65+m)+col; n=Math.floor((n-1)/26);} 
+        for(let r=Math.min(A.row,B.row); r<=Math.max(A.row,B.row); r++){ 
+            const ref = col+''+r; 
+            const val = document.querySelector('[data-cell="'+ref+'"]').innerText; 
+            cells.push({ref, val}); 
+        }
+    } 
+    document.getElementById('rangeData').innerText = JSON.stringify(cells, null, 2); 
+}
+
+// Formula Bar update (MODIFIED: Clears ref on no selection)
+function updateFormulaBar(){
+    if (!selection.start) {
+        formulaBar.value = '';
+        cellReference.innerText = '';
+        return;
+    }
+    const ref = selection.start;
+    cellReference.innerText = ref;
+
+    const c = cellMap[ref];
+    // Show raw formula if it exists, otherwise show raw value
+    if (c && c.f) {
+        formulaBar.value = c.f;
+    } else if (c && c.v) {
+        formulaBar.value = c.v;
+    } else {
+        formulaBar.value = '';
+    }
+}
+
+
+// --- Export PDF Logic (UNTOUCHED) ---
+function exportPDF() {
+    const sheetArea = document.querySelector('.sheet-area');
+    const originalOverflow = sheetArea.style.overflow;
+    sheetArea.style.overflow = 'visible';
+    const sheetTable = document.getElementById('sheetTable');
+
+    html2canvas(sheetTable, { 
+        scale: 2, 
+        logging: false,
+        useCORS: true 
+    }).then(canvas => {
+        sheetArea.style.overflow = originalOverflow; 
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'mm', 'a4'); 
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const w = imgWidth * ratio;
+        const h = imgHeight * ratio;
+
+        pdf.addImage(imgData, 'JPEG', (pdfWidth - w) / 2, (pdfHeight - h) / 2, w, h);
+        
+        pdf.save('spreadsheet_export.pdf');
+    }).catch(error => {
+        sheetArea.style.overflow = originalOverflow;
+        console.error('PDF generation error:', error);
+        alert('Error generating PDF. Check the console for details.');
+    });
+}
+
+
+// --- Event Listeners ---
+
+// Style Controls (UNTOUCHED)
+document.getElementById('boldBtn').addEventListener('click', ()=> applyStyleToSelection('bold'));
+document.getElementById('italicBtn').addEventListener('click', ()=> applyStyleToSelection('italic'));
+document.getElementById('fontFamily').addEventListener('change', e=> applyStyleToSelection('fontFamily', e.target.value));
+document.getElementById('fontSize').addEventListener('change', e=> applyStyleToSelection('fontSize', e.target.value));
+document.getElementById('textColor').addEventListener('input', e=> applyStyleToSelection('color', e.target.value));
+document.getElementById('cellColor').addEventListener('input', e=> applyStyleToSelection('bgColor', e.target.value));
+document.querySelectorAll('[data-align]').forEach(btn => {
+    btn.addEventListener('click', e=> applyStyleToSelection('textAlign', e.currentTarget.dataset.align));
+});
+
+// Sheet Controls (UNTOUCHED)
+document.getElementById('mergeBtn').addEventListener('click', ()=> mergeSelection());
+document.getElementById('unmergeBtn').addEventListener('click', ()=> unmergeSelection());
+document.getElementById('chartModalBtn').addEventListener('click', ()=> openChartModal());
+
+// Chart Modal Controls (UNTOUCHED)
+document.getElementById('closeChartModal').addEventListener('click', ()=> closeChartModal());
+document.getElementById('exportChartBtn').addEventListener('click', ()=> exportChartAsPNG());
+chartTypeSelect.addEventListener('change', ()=> createChartFromSelection(chartTypeSelect.value));
+
+// Export/Import (UNTOUCHED)
+document.getElementById('exportCSV').addEventListener('click', ()=> exportCSV());
+document.getElementById('exportPDF').addEventListener('click', ()=> exportPDF()); 
+
+document.getElementById('importBtn').addEventListener('click', ()=> document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e=>{
+    const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(evt){ const data = evt.target.result; 
+        if(file.name.endsWith('.csv')){ 
+             const text = data; 
+             const rows = text.split('\n').map(r=> r.split(',').map(c=> c.replace(/^"|"$/g, '').replace(/""/g, '"')));
+             loadArrayToSheet(rows);
+        } else { // XLSX
+            const wb = XLSX.read(data, {type:'binary'}); 
+            const first = wb.Sheets[wb.SheetNames[0]]; 
+            const aoa = XLSX.utils.sheet_to_json(first, {header:1}); 
+            loadArrayToSheet(aoa); 
+        }
+    };
+    if(file.name.endsWith('.csv')) reader.readAsText(file); else reader.readAsBinaryString(file);
+});
+
+// loadArrayToSheet (UNTOUCHED)
+function loadArrayToSheet(aoa){ 
+    cellMap = {}; 
+    for(let r=0;r<aoa.length && r<ROWS;r++){ 
+        for(let c=0;c<aoa[r].length && c<COLS;c++){ 
+            const ref = colLabel(c)+''+(r+1); 
+            const text = aoa[r][c] || '';
+            cellMap[ref] = { 
+                v: text,
+                f: text.toString().startsWith('=') ? text : undefined
+            }; 
+        } 
+    } 
+    renderLoaded(); 
+}
+// renderLoaded (UNTOUCHED)
+function renderLoaded(){ 
+    for(let r=1;r<=ROWS;r++){ 
+        for(let c=0;c<COLS;c++){ 
+            const ref = colLabel(c)+''+r; 
+            const el = document.querySelector('[data-cell="'+ref+'"]'); 
+            el.innerText = (cellMap[ref] && cellMap[ref].v) ? cellMap[ref].v : ''; 
+        } 
+    } 
+    renderAll(); 
+}
+
+// exportCSV, exportXLSX (UNTOUCHED)
+
+// FIX: Formula bar event listener now properly updates the cell model and triggers blur/recalc.
+formulaBar.addEventListener('keydown', e=>{ 
+    if(e.key === 'Enter'){
+        e.preventDefault();
+        const activeCellElement = document.querySelector('[data-cell].selected');
+        
+        if(activeCellElement){
+            const ref = activeCellElement.dataset.cell;
+            const text = formulaBar.value;
+            
+            // 1. Update the cell's model data directly from the formula bar input
+            cellMap[ref] = cellMap[ref]||{}; 
+            cellMap[ref].v = text;
+            cellMap[ref].f = text.startsWith('=') ? text : undefined;
+
+            // 2. Temporarily set the innerText of the active cell to the formula/value
+            activeCellElement.innerText = text;
+            
+            // 3. Blur the cell element to finalize and trigger the full recalculation
+            activeCellElement.blur(); 
+        }
+        // Force the formula bar to lose focus if possible (for better UX)
+        formulaBar.blur();
+    }
+});
+
+// Run build
+buildTable();
+</script>
+</body>
+</html>
