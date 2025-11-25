@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Pro Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        // Theme Toggle (Existing)
+        const toggleTheme = () => {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+        };
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+        });
+
+        // 💡 NEW: Mobile Menu Toggle
+        const toggleMobileMenu = () => {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        };
+    </script>
+</head>
+<body class="bg-white dark:bg-black text-gray-900 dark:text-gray-200">
+
+    <nav id="mobile-menu" class="fixed inset-0 bg-white dark:bg-black z-50 transform transition-transform duration-300 hidden md:hidden">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-blue-600 rounded-lg"></div>
+                <span class="text-2xl font-semibold tracking-tight">Menu</span>
+            </div>
+            <button onclick="toggleMobileMenu()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-4 flex flex-col space-y-2 text-xl font-medium">
+            <a class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#" onclick="toggleMobileMenu()">Home</a>
+            <a class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#features" onclick="toggleMobileMenu()">Features</a>
+            <a class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="#apps" onclick="toggleMobileMenu()">Apps</a>
+            <a class="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" href="https://uzairb2b.blogspot.com/" onclick="toggleMobileMenu()">UZAIR B2B</a>
+        </div>
+    </nav>
+    
+    <header class="fixed top-0 left-0 w-full bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200/40 dark:border-gray-700/40 z-50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between p-4">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleMobileMenu()" class="md:hidden p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                
+                <div class="w-9 h-9 bg-blue-600 rounded-lg"></div>
+                <span class="text-2xl font-semibold tracking-tight">Cloud Pro Suite</span>
+            </div>
+            <nav class="hidden md:flex space-x-10 font-medium">
+                <a class="hover:text-blue-600 dark:hover:text-blue-400" href="#">Home</a>
+                <a class="hover:text-blue-600 dark:hover:text-blue-400" href="#features">Features</a>
+                <a class="hover:text-blue-600 dark:hover:text-blue-400" href="#apps">Apps</a>
+                <a class="hover:text-blue-600 dark:hover:text-blue-400" href="https://uzairb2b.blogspot.com/">UZAIR B2B</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="pt-40 pb-24 text-center max-w-4xl mx-auto px-4">
+        <h1 class="text-5xl md:text-7xl font-bold leading-tight tracking-tighter mb-6">
+            Create. Collaborate. Achieve.
+        </h1>
+        <p class="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-10">
+            A clean, modern productivity suite designed.
+        </p>
+        <div class="flex flex-col md:flex-row justify-center gap-6">
+            <a href="#apps" class="px-10 py-4 bg-blue-600 text-white rounded-xl text-lg font-medium hover:bg-blue-700 transition">Launch Suite</a>
+            <a href="#features" class="px-10 py-4 bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-700 transition">Learn More</a>
+        </div>
+    </section>
+
+    <section id="features" class="py-24 max-w-6xl mx-auto px-6">
+        <h2 class="text-4xl font-bold text-center mb-14 tracking-tight">Why Cloud Pro Suite?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div class="p-8 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <h3 class="text-2xl font-semibold mb-3">Minimal & Fast</h3>
+                <p class="text-gray-600 dark:text-gray-400">A clean interface with no clutter — built for instant productivity.</p>
+            </div>
+            <div class="p-8 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <h3 class="text-2xl font-semibold mb-3">Cloud Smart</h3>
+                <p class="text-gray-600 dark:text-gray-400">Your files are auto-synced & accessible from any device.</p>
+            </div>
+            <div class="p-8 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <h3 class="text-2xl font-semibold mb-3">Future Ready</h3>
+                <p class="text-gray-600 dark:text-gray-400">Powered by modern frameworks — fluid, stable & secure.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="apps" class="py-24 bg-gray-100 dark:bg-gray-950 px-6">
+        <h2 class="text-4xl font-bold text-center mb-14 tracking-tight">Choose Your App</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-6xl mx-auto">
+            <a class="p-10 rounded-2xl bg-white dark:bg-black border-t-4 border-blue-600 dark:border-blue-400 shadow-lg hover:shadow-xl transition text-center" href="doc.html">
+                <h3 class="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-3">Cloud Pro Doc</h3>
+                <p class="text-gray-600 dark:text-gray-400">Advanced writing made simple and elegant.</p>
+            </a>
+            <a class="p-10 rounded-2xl bg-white dark:bg-black border-t-4 border-green-600 dark:border-green-400 shadow-lg hover:shadow-xl transition text-center" href="sheet.html">
+                <h3 class="text-2xl font-bold text-green-700 dark:text-green-400 mb-3">Cloud Pro Sheet</h3>
+                <p class="text-gray-600 dark:text-gray-400">Powerful analytics in a minimal interface.</p>
+            </a>
+            <a class="p-10 rounded-2xl bg-white dark:bg-black border-t-4 border-red-600 dark:border-red-400 shadow-lg hover:shadow-xl transition text-center" href="slides.html">
+                <h3 class="text-2xl font-bold text-red-700 dark:text-red-400 mb-3">Cloud Pro Slides</h3>
+                <p class="text-gray-600 dark:text-gray-400">Build stunning presentations with ease.</p>
+            </a>
+<a class="p-10 rounded-2xl bg-white dark:bg-black border-t-4 border-red-600 dark:border-amber-400 shadow-lg hover:shadow-xl transition text-center" href="code.html">
+                <h3 class="text-2xl font-bold text-red-700 dark:text-red-400 mb-3">Cloud Pro Code</h3>
+                <p class="text-gray-600 dark:text-gray-400">Test HTML, CSS, JS online.</p>
+            </a>
+        </div>
+    </section>
+
+    <footer class="py-12 text-center border-t border-gray-200 dark:border-gray-800">
+        <p class="text-lg">© Cloud Pro Suite — Developed by Uzair B2B</p>
+        <p class="text-sm text-gray-600 dark:text-gray-500 mt-1">Designed for modern creators.</p>
+    </footer>
+
+</body>
+</html>
