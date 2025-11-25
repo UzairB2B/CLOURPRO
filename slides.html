@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cloud PPT Pro — Presentation Editor</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Font Awesome for Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+<!-- html2pdf Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+/* --- BASE STYLING & RESPONSIVENESS --- */
+.tool-group {
+    border-right: 1px solid #eee;
+    padding-right: 12px;
+    margin-right: 12px;
+}
+.tool-group:last-child, 
+/* Remove border for the last tool group (now that lists are removed) */
+.tool-group:nth-last-child(2) { 
+    border-right: none;
+    padding-right: 0;
+    margin-right: 0;
+}
+
+/* Base Slide Size */
+.slide {
+    /* Fixed aspect ratio for PDF export */
+    width: 960px;
+    height: 540px; 
+    background: white;
+    margin: auto;
+    border: 2px solid #e2e8f0; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    position: relative;
+    padding: 20px;
+    transform-origin: top center;
+    transition: box-shadow 0.2s;
+    cursor: default;
+    margin-bottom: 32px; 
+    page-break-after: always; 
+}
+.slide:last-child {
+    page-break-after: auto !important;
+}
+
+/* Text Box Styling */
+.text-box {
+    min-height: 40px;
+    outline: none;
+    border: 1px dashed transparent;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+.text-box:focus {
+    border: 1px dashed #93c5fd; 
+}
+
+/* Delete Button */
+.delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #dc2626; 
+    color: white;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+.hide-for-export {
+    display: none !important;
+}
+
+/* Text Color Indicator */
+#textColorBtn {
+    border-bottom: 3px solid #333333; 
+}
+
+/* Make slide container fluid on small screens */
+@media (max-width: 1024px) {
+    .slide {
+        /* Scale down the slide on smaller screens to fit the viewport */
+        width: 90vw;
+        height: 50.625vw; /* Maintain 16:9 aspect ratio (9 / 16 * 90vw) */
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .slide[style*="transform"] {
+        /* Allow zoom to override the default scaling, but keep margins */
+        width: 960px;
+        height: 540px;
+    }
+
+    /* Ensure toolbar wraps nicely on mobile */
+    #toolbar .flex-wrap {
+        justify-content: center;
+    }
+}
+</style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 font-inter min-h-screen flex flex-col">
+
+<!-- Toolbar Section -->
+<header id="toolbar" class="bg-white shadow-md p-3 mb-4 sticky top-0 z-50 border-b border-gray-200">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex items-center justify-between mb-3">
+            <h1 class="text-xl font-extrabold text-indigo-700">Cloud Slides Pro</h1>
+            <div class="flex gap-2">
+                <a href="index.html" class="px-3 py-2 bg-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-300 transition duration-150" title="Go to Home">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <button onclick="exportPDF()" class="px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition duration-150">
+                    <i class="fas fa-file-pdf mr-1"></i> Export PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Formatting Ribbon -->
+        <div class="bg-gray-100 p-2 rounded-lg flex flex-wrap items-center gap-3">
+            
+            <!-- Slide Management -->
+            <div class="tool-group flex gap-2">
+                <button onclick="addSlide()" class="h-8 px-3 py-1 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700" title="Add New Slide">
+                    <i class="fas fa-plus mr-1"></i> Add Slide
+                </button>
+                <button onclick="deleteLastSlide()" class="h-8 px-3 py-1 bg-red-500 text-white rounded-md text-sm hover:bg-red-600" title="Delete Last Slide">
+                    <i class="fas fa-trash-alt mr-1"></i> Delete Last
+                </button>
+            </div>
+            
+            <!-- Layout -->
+            <div class="tool-group flex items-center gap-2">
+                <label class="text-sm font-medium text-slate-600 whitespace-nowrap">Layout:</label>
+                <select id="layoutSelect" onchange="applyLayout()" class="h-8 border border-gray-300 rounded-md text-sm px-2 py-0">
+                    <option value="title">Title Slide</option>
+                    <option value="title-body">Title + Body</option>
+                    <option value="blank">Blank</option>
+                </select>
+            </div>
+
+            <!-- Font/Size -->
+            <div class="tool-group flex items-center gap-2">
+                <select id="fontFamily" onchange="changeFontFamily()" class="h-8 border border-gray-300 rounded-md text-sm px-2 py-0" style="width:120px;">
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="Verdana, sans-serif">Verdana</option>
+                    <option value="Georgia, serif">Georgia</option>
+                </select>
+                <select id="fontSize" onchange="changeFontSize()" class="h-8 border border-gray-300 rounded-md text-sm px-2 py-0" style="width:70px;">
+                    <option value="14">14pt</option>
+                    <option value="18">18pt</option>
+                    <option value="24">24pt</option>
+                    <option value="32" selected>32pt</option>
+                    <option value="48">48pt</option>
+                </select>
+            </div>
+            
+            <!-- Text Style & Color -->
+            <div class="tool-group flex gap-1">
+                <button onclick="formatText('bold')" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white font-bold" title="Bold"><i class="fas fa-bold"></i></button>
+                <button onclick="formatText('italic')" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white italic" title="Italic"><i class="fas fa-italic"></i></button>
+                <button onclick="formatText('underline')" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white underline" title="Underline"><i class="fas fa-underline"></i></button>
+                
+                <button id="textColorBtn" onclick="document.getElementById('textColorInput').click()" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white cursor-pointer" title="Text Color">
+                    <i class="fas fa-font"></i>
+                    <input type="color" id="textColorInput" onchange="changeTextColor(this.value)" class="hidden" value="#333333">
+                </button>
+            </div>
+
+            <!-- Background Color -->
+            <div class="tool-group flex gap-2 items-center">
+                 <label for="pageColor" class="w-8 h-8 flex items-center justify-center rounded hover:bg-white cursor-pointer" title="Slide Background Color">
+                    <i class="fas fa-palette text-gray-600"></i>
+                    <input type="color" id="pageColor" oninput="changeSlideBackgroundColor(this.value)" class="opacity-0 w-0 h-0 p-0 absolute" value="#ffffff">
+                </label>
+            </div>
+
+            <!-- Alignment -->
+            <div class="tool-group flex gap-1">
+                <button onclick="formatText('justifyLeft')" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white" title="Align Left"><i class="fas fa-align-left"></i></button>
+                <button onclick="formatText('justifyCenter')" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white" title="Align Center"><i class="fas fa-align-center"></i></button>
+                <button onclick="formatText('justifyRight')" class="w-8 h-8 flex items-center justify-center text-gray-600 rounded hover:bg-white" title="Align Right"><i class="fas fa-align-right"></i></button>
+            </div>
+
+            <!-- Zoom -->
+            <div class="flex gap-2">
+                <button onclick="zoom(1.1)" class="h-8 px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300" title="Zoom In"><i class="fas fa-search-plus mr-1"></i> Zoom +</button>
+                <button onclick="zoom(0.9)" class="h-8 px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300" title="Zoom Out"><i class="fas fa-search-minus mr-1"></i> Zoom -</button>
+            </div>
+            
+        </div>
+    </div>
+</header>
+
+<!-- Slides Container -->
+<main id="mainContent" class="max-w-7xl mx-auto px-4 flex-grow">
+    <div id="slidesContainer" class="p-6 flex flex-col gap-8 items-center bg-white shadow-lg rounded-lg border border-gray-200">
+        <!-- Slides appended here -->
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="bg-gray-800 text-white p-4 mt-8">
+    <div class="max-w-7xl mx-auto text-center text-sm">
+        &copy; 2024 Cloud Slides Pro. Developed by Uzair B2B Services.
+    </div>
+</footer>
+
+<script>
+let scale = 1;
+
+// --- UTILITIES ---
+
+function getActiveSlide() {
+    const slides = document.querySelectorAll(".slide");
+    if (slides.length === 0) return null;
+    return slides[slides.length - 1]; 
+}
+
+// --- SLIDE MANAGEMENT ---
+
+function addSlide() {
+    const slide = document.createElement("div");
+    slide.className = "slide";
+    slide.dataset.layout = "title";
+    slide.style.backgroundColor = document.getElementById('pageColor').value || 'white'; 
+
+    slide.innerHTML = `
+        <div class="delete-btn" onclick="deleteSpecificSlide(this)">Delete</div>
+        <h1 class="text-box text-3xl font-bold p-4" contenteditable="true">Presentation Title</h1>
+        <p class="text-box text-lg p-4" contenteditable="true">Your subtitle or description...</p>
+    `;
+
+    document.getElementById("slidesContainer").appendChild(slide);
+    // After adding a new slide, adjust the responsive scale
+    adjustSlideScale();
+}
+
+function deleteLastSlide() {
+    const container = document.getElementById("slidesContainer");
+    const slides = container.querySelectorAll(".slide");
+
+    if (slides.length > 1) {
+        container.removeChild(slides[slides.length - 1]);
+    } else {
+        // Use a simple console log instead of alert for better UX flow
+        console.log("At least 1 slide must remain."); 
+    }
+}
+
+function deleteSpecificSlide(btn) {
+    const slide = btn.parentElement;
+    const slides = document.querySelectorAll(".slide");
+
+    if (slides.length > 1) {
+        slide.remove();
+    } else {
+        console.log("At least 1 slide must remain.");
+    }
+}
+
+function applyLayout() {
+    const slide = getActiveSlide();
+    if (!slide) return;
+
+    const layout = document.getElementById("layoutSelect").value;
+    slide.dataset.layout = layout;
+    
+    slide.innerHTML = `<div class="delete-btn" onclick="deleteSpecificSlide(this)">Delete</div>`;
+
+    if (layout === "title") {
+        slide.innerHTML += `
+            <h1 class="text-box text-4xl font-bold p-6 text-center" contenteditable="true">MAIN TITLE</h1>
+            <p class="text-box text-xl p-4 text-center" contenteditable="true">Subtitle or Presenter Name</p>
+        `;
+    }
+    else if (layout === "title-body") {
+        slide.innerHTML += `
+            <h1 class="text-box text-3xl font-bold p-4" contenteditable="true">SECTION TITLE</h1>
+            <div class="text-box" contenteditable="true">
+                <p>Start typing content here.</p>
+            </div>
+        `;
+    }
+    else if (layout === "blank") {
+        slide.innerHTML += `
+            <div class="text-box text-2xl p-4" contenteditable="true">Start typing anywhere...</div>
+        `;
+    }
+}
+
+// --- FORMATTING CONTROLS ---
+
+function formatText(cmd) {
+    document.execCommand(cmd, false, null);
+}
+
+function changeFontFamily() {
+    const fontFamily = document.getElementById("fontFamily").value;
+    document.execCommand('fontName', false, fontFamily.split(',')[0].replace(/['"]/g, ''));
+}
+
+function changeFontSize() {
+    const size = document.getElementById("fontSize").value;
+    document.execCommand("fontSize", false, "7");
+
+    let elements = document.querySelectorAll("font[size='7']");
+    elements.forEach(el => {
+        el.removeAttribute("size");
+        el.style.fontSize = size + "pt"; 
+    });
+}
+
+function changeTextColor(color) {
+    document.getElementById('textColorBtn').style.borderBottomColor = color;
+    document.execCommand('styleWithCSS', false, true); 
+    document.execCommand('foreColor', false, color);
+    document.execCommand('styleWithCSS', false, false); 
+}
+
+function changeSlideBackgroundColor(color) {
+    const slide = getActiveSlide();
+    if (slide) {
+        slide.style.backgroundColor = color;
+    }
+}
+
+function zoom(factor) {
+    const slides = document.querySelectorAll(".slide");
+    scale *= factor;
+    slides.forEach(s => {
+        s.style.transform = `scale(${scale})`;
+        s.style.width = '960px'; // Prevent conflicting width from responsive styles
+        s.style.height = '540px';
+    });
+}
+
+// --- RESPONSIVE LOGIC ---
+
+function adjustSlideScale() {
+    const container = document.getElementById('slidesContainer');
+    const slides = document.querySelectorAll('.slide');
+    if (!container || slides.length === 0) return;
+
+    // Only apply responsive scaling if we are not actively zoomed (scale = 1)
+    if (scale === 1) {
+        // Calculate the maximum available width for the slide, subtracting padding
+        const maxContentWidth = container.clientWidth - 48; // container padding is 24px * 2 = 48px
+        const baseWidth = 960;
+
+        if (maxContentWidth < baseWidth) {
+            const responsiveScale = maxContentWidth / baseWidth;
+            
+            slides.forEach(s => {
+                s.style.transform = `scale(${responsiveScale})`;
+                s.style.width = baseWidth + 'px'; // Set base dimensions for scaling
+                s.style.height = '540px';
+                s.style.marginBottom = (32 * responsiveScale) + 'px';
+            });
+        } else {
+            // Reset if screen is wide enough
+            slides.forEach(s => {
+                s.style.transform = `scale(1)`;
+                s.style.width = baseWidth + 'px';
+                s.style.height = '540px';
+                s.style.marginBottom = '32px';
+            });
+        }
+    }
+}
+
+// --- EXPORT FUNCTIONS ---
+
+function exportPDF() {
+    const container = document.getElementById("slidesContainer");
+    const toolbar = document.getElementById("toolbar");
+    const footer = document.querySelector('footer');
+    const mainContent = document.getElementById("mainContent");
+    const body = document.body;
+    
+    // 1. Prepare for export
+    toolbar.classList.add('hide-for-export');
+    footer.classList.add('hide-for-export');
+    
+    const deleteBtns = document.querySelectorAll('.delete-btn');
+    deleteBtns.forEach(btn => btn.classList.add('hide-for-export'));
+    
+    const originalBodyStyles = body.getAttribute('style');
+    const originalContainerClass = container.className;
+    
+    // Apply minimal styles for clean PDF capture
+    body.style.margin = '0';
+    body.style.backgroundColor = 'white';
+    container.className = 'p-0 flex flex-col items-center';
+
+    body.appendChild(container); // Move container for isolation
+
+    const options = {
+        margin: [0, 0, 0, 0], 
+        filename: 'Cloud-PPT-Pro.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, logging: false, dpi: 192, letterRendering: true },
+        jsPDF: { unit: 'px', format: [960, 540], orientation: 'landscape' }, 
+        pagebreak: { mode: ['css'] } 
+    };
+
+    html2pdf().from(container).set(options).save().finally(() => {
+        // 2. Restore after export
+        toolbar.classList.remove('hide-for-export');
+        footer.classList.remove('hide-for-export');
+        deleteBtns.forEach(btn => btn.classList.remove('hide-for-export'));
+
+        body.setAttribute('style', originalBodyStyles || '');
+        container.className = originalContainerClass;
+        mainContent.appendChild(container); 
+        
+        // Re-apply responsive adjustments
+        adjustSlideScale();
+    });
+}
+
+
+// --- INITIALIZATION ---
+window.addEventListener('load', () => {
+    addSlide(); 
+    document.getElementById('fontSize').value = "32"; 
+    document.getElementById('fontFamily').value = "Arial, sans-serif";
+    
+    // Attach event listeners for responsiveness
+    window.addEventListener('resize', adjustSlideScale);
+    adjustSlideScale(); // Initial call
+});
+</script>
+</body>
+</html>
